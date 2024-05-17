@@ -3,8 +3,8 @@ use crate::{
     framework::{DefaultError, Framework},
     group::*,
     hook::{AfterHook, BeforeHook},
+    parse::ParseError,
     twilight_exports::{ApplicationMarker, Client, CommandType, Id, Permissions},
-    parse::ParseError
 };
 
 use std::{ops::Deref, sync::Arc};
@@ -63,6 +63,18 @@ impl From<Box<dyn Deref<Target = Client> + Send + Sync>> for WrappedClient {
     }
 }
 
+impl std::ops::Deref for WrappedClient {
+    type Target = Client;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            WrappedClient::Arc(ref c) => c,
+            WrappedClient::Raw(ref c) => c,
+            WrappedClient::Boxed(ref b) => b,
+        }
+    }
+}
+
 /// A pointer to a function returning a generic T type.
 pub(crate) type FnPointer<T> = fn() -> T;
 
@@ -86,7 +98,7 @@ pub struct FrameworkBuilder<D, T = (), E = DefaultError> {
 
 impl<D, T, E> FrameworkBuilder<D, T, E>
 where
-    E: From<ParseError>
+    E: From<ParseError>,
 {
     /// Creates a new [Builder](self::FrameworkBuilder).
     pub fn new(
@@ -253,7 +265,7 @@ pub struct GroupParentBuilder<D, T, E> {
     kind: ParentType<D, T, E>,
     required_permissions: Option<Permissions>,
     nsfw: bool,
-    only_guilds: bool
+    only_guilds: bool,
 }
 
 impl<D, T, E> GroupParentBuilder<D, T, E> {
@@ -265,7 +277,7 @@ impl<D, T, E> GroupParentBuilder<D, T, E> {
             kind: ParentType::Group(Default::default()),
             required_permissions: None,
             nsfw: false,
-            only_guilds: false
+            only_guilds: false,
         }
     }
 
@@ -299,8 +311,8 @@ impl<D, T, E> GroupParentBuilder<D, T, E> {
     /// Sets this parent group as a [group](crate::group::ParentType::Group),
     /// allowing to create subcommand groups inside of it.
     pub fn group<F>(&mut self, fun: F) -> &mut Self
-        where
-            F: FnOnce(&mut CommandGroupBuilder<D, T, E>) -> &mut CommandGroupBuilder<D, T, E>,
+    where
+        F: FnOnce(&mut CommandGroupBuilder<D, T, E>) -> &mut CommandGroupBuilder<D, T, E>,
     {
         let mut builder = CommandGroupBuilder::new();
         fun(&mut builder);
@@ -320,7 +332,10 @@ impl<D, T, E> GroupParentBuilder<D, T, E> {
     /// Sets this parent group as [simple](crate::group::ParentType::Simple), only allowing subcommands.
     pub fn command(&mut self, fun: FnPointer<Command<D, T, E>>) -> &mut Self {
         let command = fun();
-        assert!(matches!(command.kind, CommandType::ChatInput), "Only chat commands can be used inside groups");
+        assert!(
+            matches!(command.kind, CommandType::ChatInput),
+            "Only chat commands can be used inside groups"
+        );
         if let ParentType::Simple(map) = &mut self.kind {
             map.insert(command.name, command);
         } else {
@@ -340,7 +355,7 @@ impl<D, T, E> GroupParentBuilder<D, T, E> {
             kind: self.kind,
             required_permissions: self.required_permissions,
             nsfw: self.nsfw,
-            only_guilds: self.only_guilds
+            only_guilds: self.only_guilds,
         }
     }
 }
@@ -368,7 +383,10 @@ impl<D, T, E> CommandGroupBuilder<D, T, E> {
     /// Adds a command to this group.
     pub fn command(&mut self, fun: FnPointer<Command<D, T, E>>) -> &mut Self {
         let command = fun();
-        assert!(matches!(command.kind, CommandType::ChatInput), "Only chat commands can be used inside groups");
+        assert!(
+            matches!(command.kind, CommandType::ChatInput),
+            "Only chat commands can be used inside groups"
+        );
         self.subcommands.insert(command.name, command);
         self
     }
